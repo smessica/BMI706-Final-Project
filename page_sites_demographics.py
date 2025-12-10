@@ -1,6 +1,7 @@
 import pandas as pd
 import streamlit as st
 import altair as alt
+import plotly.express as px
 from data_prep import load_and_preprocess_brca
 
 # --- Page B: Tumor Site + Demographics Map View ---
@@ -92,20 +93,30 @@ def page_sites_demographics():
     
     with col_map:
         st.write("**World Map: Total BRCA Incidence by Country**")
-        st.info("📍 Hover over countries to see subtype composition\n\n(Note: Country data would require geocoding; currently showing race/ethnicity breakdown as proxy)")
         
-        # Aggregate by race/ethnicity as demographic proxy
-        demo_counts = filtered_df.groupby(["race", "ethnicity"]).size().reset_index(name="Count")
-        demo_counts = demo_counts[demo_counts["race"] != "Unknown"].sort_values("Count", ascending=False).head(12)
+        # Create sample country data for demonstration
+        # In production, this would come from geocoding patient addresses
+        country_data = pd.DataFrame({
+            'Country': ['United States', 'Canada', 'United Kingdom', 'Germany', 'France', 
+                       'Australia', 'Japan', 'Brazil', 'Mexico', 'India'],
+            'Cases': [1200, 450, 380, 320, 290, 250, 200, 180, 150, 140],
+            'ISO-3': ['USA', 'CAN', 'GBR', 'DEU', 'FRA', 'AUS', 'JPN', 'BRA', 'MEX', 'IND']
+        })
         
-        demo_chart = alt.Chart(demo_counts).mark_bar().encode(
-            x=alt.X("Count:Q", title="Number of Patients"),
-            y=alt.Y("race:N", sort="-x", title="Race"),
-            color=alt.Color("ethnicity:N", title="Ethnicity", scale=alt.Scale(scheme="category10")),
-            tooltip=["race", "ethnicity", "Count"]
-        ).properties(height=350, title="Incidence by Race/Ethnicity")
+        # Create choropleth map
+        fig = px.choropleth(
+            country_data,
+            locations='ISO-3',
+            z='Cases',
+            hover_name='Country',
+            color_continuous_scale='Blues',
+            labels={'Cases': 'BRCA Cases'},
+            title='World Map: Total BRCA Incidence'
+        )
+        fig.update_layout(height=400, font=dict(size=11))
+        st.plotly_chart(fig, use_container_width=True)
         
-        st.altair_chart(demo_chart, use_container_width=True)
+        st.caption("📍 Hover over countries to see case counts. (Note: Demo data shown; update with real country-level aggregation)")
     
     with col_subtype:
         st.write("**Subtype Composition**")
