@@ -86,75 +86,71 @@ def page_sites_demographics():
     
     st.sidebar.metric("Patients in View", len(filtered_df))
     
-    # --- Lindsay's View: Geographic Incidence Map & Subtype Composition ---
-    st.subheader("Country-level Incidence & Subtype Distribution")
+    # --- Lindsay's View: Geographic Incidence Map ---
+    st.subheader("World Map: Total BRCA Incidence by Country")
     
-    col_map, col_subtype = st.columns([2, 1])
+    # Create sample country data for demonstration
+    # In production, this would come from geocoding patient addresses
+    country_data = pd.DataFrame({
+        'Country': ['United States', 'Canada', 'United Kingdom', 'Germany', 'France', 
+                   'Australia', 'Japan', 'Brazil', 'Mexico', 'India'],
+        'Cases': [1200, 450, 380, 320, 290, 250, 200, 180, 150, 140],
+        'ISO-3': ['USA', 'CAN', 'GBR', 'DEU', 'FRA', 'AUS', 'JPN', 'BRA', 'MEX', 'IND']
+    })
     
-    with col_map:
-        st.write("**World Map: Total BRCA Incidence by Country**")
-        
-        # Create sample country data for demonstration
-        # In production, this would come from geocoding patient addresses
-        country_data = pd.DataFrame({
-            'Country': ['United States', 'Canada', 'United Kingdom', 'Germany', 'France', 
-                       'Australia', 'Japan', 'Brazil', 'Mexico', 'India'],
-            'Cases': [1200, 450, 380, 320, 290, 250, 200, 180, 150, 140],
-            'ISO-3': ['USA', 'CAN', 'GBR', 'DEU', 'FRA', 'AUS', 'JPN', 'BRA', 'MEX', 'IND']
-        })
-        
-        # Create choropleth map
-        fig = px.choropleth(
-            country_data,
-            locations='ISO-3',
-            color='Cases',
-            hover_name='Country',
-            color_continuous_scale='Blues',
-            labels={'Cases': 'BRCA Cases'},
-            title='World Map: Total BRCA Incidence'
-        )
-        fig.update_layout(height=400, font=dict(size=11))
-        st.plotly_chart(fig, use_container_width=True)
-        
-        st.caption("📍 Hover over countries to see case counts. (Note: Demo data shown; update with real country-level aggregation)")
+    # Create choropleth map
+    fig = px.choropleth(
+        country_data,
+        locations='ISO-3',
+        color='Cases',
+        hover_name='Country',
+        color_continuous_scale='Blues',
+        labels={'Cases': 'BRCA Cases'}
+    )
+    fig.update_layout(height=500, font=dict(size=11))
+    st.plotly_chart(fig, use_container_width=True)
     
-    with col_subtype:
-        st.write("**Subtype Composition**")
-        
-        # Subtype distribution (using stage as proxy for subtype)
-        subtype_counts = filtered_df["stage"].value_counts().reset_index()
-        subtype_counts.columns = ["Subtype", "Count"]
-        subtype_counts = subtype_counts[subtype_counts["Subtype"] != "Unknown"]
-        
-        # Define consistent color scheme for subtypes
-        subtype_colors = {
-            "Stage I": "#1f77b4",
-            "Stage II": "#ff7f0e",
-            "Stage III": "#2ca02c",
-            "Stage IV": "#d62728"
-        }
-        
-        if not subtype_counts.empty:
-            if normalize_by == "Total Cases":
-                subtype_counts["Percentage"] = 100 * subtype_counts["Count"] / subtype_counts["Count"].sum()
-                encoding_field = "Percentage:Q"
-                title_suffix = " (%)"
-            else:
-                encoding_field = "Count:Q"
-                title_suffix = ""
-            
-            subtype_chart = alt.Chart(subtype_counts).mark_bar().encode(
-                x=alt.X(encoding_field, title=f"Cases{title_suffix}"),
-                y=alt.Y("Subtype:N", sort="-x", title="Stage/Subtype"),
-                color=alt.Color("Subtype:N", scale=alt.Scale(domain=list(subtype_colors.keys()), 
-                                                             range=list(subtype_colors.values())),
-                               title="Subtype"),
-                tooltip=["Subtype", "Count"]
-            ).properties(height=350)
-            
-            st.altair_chart(subtype_chart, use_container_width=True)
+    st.caption("📍 Hover over countries to see case counts. (Note: Demo data shown; update with real country-level aggregation)")
+    
+    st.divider()
+    
+    # --- Subtype Composition ---
+    st.subheader("Subtype Distribution")
+    
+    # Subtype distribution (using stage as proxy for subtype)
+    subtype_counts = filtered_df["stage"].value_counts().reset_index()
+    subtype_counts.columns = ["Subtype", "Count"]
+    subtype_counts = subtype_counts[subtype_counts["Subtype"] != "Unknown"]
+    
+    # Define consistent color scheme for subtypes
+    subtype_colors = {
+        "Stage I": "#1f77b4",
+        "Stage II": "#ff7f0e",
+        "Stage III": "#2ca02c",
+        "Stage IV": "#d62728"
+    }
+    
+    if not subtype_counts.empty:
+        if normalize_by == "Total Cases":
+            subtype_counts["Percentage"] = 100 * subtype_counts["Count"] / subtype_counts["Count"].sum()
+            encoding_field = "Percentage:Q"
+            title_suffix = " (%)"
         else:
-            st.info("No subtype data available for current filters.")
+            encoding_field = "Count:Q"
+            title_suffix = ""
+        
+        subtype_chart = alt.Chart(subtype_counts).mark_bar().encode(
+            x=alt.X(encoding_field, title=f"Cases{title_suffix}"),
+            y=alt.Y("Subtype:N", sort="-x", title="Stage/Subtype"),
+            color=alt.Color("Subtype:N", scale=alt.Scale(domain=list(subtype_colors.keys()), 
+                                                         range=list(subtype_colors.values())),
+                           title="Subtype"),
+            tooltip=["Subtype", "Count"]
+        ).properties(height=300, width=400)
+        
+        st.altair_chart(subtype_chart, use_container_width=True)
+    else:
+        st.info("No subtype data available for current filters.")
     
     st.divider()
     
