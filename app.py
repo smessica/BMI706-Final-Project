@@ -1207,35 +1207,43 @@ def page_demographics():
         st.error("Error: Could not locate clinical.tsv")
         return
     
-    st.sidebar.subheader("Filters")
+    st.subheader("Filters")
     
-    # Stage filter
-    stage_opts = sorted([x for x in brca_df["stage"].unique() if pd.notna(x) and x != "Unknown"])
-    selected_stage = st.sidebar.selectbox(
-        "STAGE",
-        ["All Stages"] + stage_opts
-    )
+    filter_col1, filter_col2, filter_col3 = st.columns(3)
     
-    # Normalize by toggle
-    normalize_by = st.sidebar.radio(
-        "Normalize by",
-        ["Total Cases", "Absolute Counts"],
-        horizontal=False
-    )
+    with filter_col1:
+        # Stage filter
+        stage_opts = sorted([x for x in brca_df["stage"].unique() if pd.notna(x) and x != "Unknown"])
+        selected_stage = st.selectbox(
+            "STAGE",
+            ["All Stages"] + stage_opts
+        )
+        
+        # Normalize by toggle
+        normalize_by = st.radio(
+            "Normalize by",
+            ["Total Cases", "Absolute Counts"],
+            horizontal=False
+        )
     
-    # Filter text box
-    filter_text = st.sidebar.text_input("Filter", "")
+    with filter_col2:
+        # Filter text box
+        filter_text = st.text_input("Filter (race/ethnicity/site)", "")
+        
+        # Age range slider
+        age_range = st.slider(
+            "Age Range",
+            int(brca_df["age"].min()),
+            int(brca_df["age"].max()),
+            (int(brca_df["age"].min()), int(brca_df["age"].max()))
+        )
     
-    # Age range slider
-    age_range = st.sidebar.slider(
-        "Age Range",
-        int(brca_df["age"].min()),
-        int(brca_df["age"].max()),
-        (int(brca_df["age"].min()), int(brca_df["age"].max()))
-    )
-    
-    # Include unknown/missing checkbox
-    include_unknown = st.sidebar.checkbox("Include unknown / missing", value=True)
+    with filter_col3:
+        # Include unknown/missing checkbox
+        include_unknown = st.checkbox("Include unknown / missing", value=True)
+        
+        # Patients metric placeholder (will update after filtering)
+        patient_metric_placeholder = st.empty()
     
     # --- Apply Filters ---
     filtered_df = brca_df.copy()
@@ -1271,7 +1279,11 @@ def page_demographics():
         st.warning("No data matches current filters. Please adjust your selection.")
         return
     
-    st.sidebar.metric("Patients in View", len(filtered_df))
+    # Update patient count metric
+    with filter_col3:
+        patient_metric_placeholder.metric("Patients in View", len(filtered_df))
+    
+    st.divider()
     st.subheader("World Map: Total BRCA Incidence by Country")
     country_counts = (
         filtered_df["country"]
