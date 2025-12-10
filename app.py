@@ -995,6 +995,7 @@ def page_expression():
     final_chart = alt.vconcat(top_row, top_gene_bar).resolve_scale(color="independent")
 
     with plots_tab:
+        st.info("Loading the plots may take a moment...")
         st.altair_chart(final_chart, use_container_width=False)
 
     default_gene = (
