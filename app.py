@@ -43,7 +43,7 @@ def clean_numeric_series(s: pd.Series) -> pd.Series:
 
 
 @st.cache_data
-def load_and_preprocess_brca(path: str):
+def load_and_preprocess_brca(path: str, drop_missing_time: bool = True):
     df = pd.read_csv(path, sep="\t", dtype=str, low_memory=False)
     df["tumor_type"] = clean_string_series(
         df.get("diagnoses.tissue_or_organ_of_origin", pd.Series("Other"))
@@ -86,10 +86,13 @@ def load_and_preprocess_brca(path: str):
     )
     brca_df["country"] = clean_string_series(
         brca_df.get(
-            "exposures.country_of_residence_at_enrollment", pd.Series("Unknown")
+            "demographic.country_of_residence_at_enrollment", pd.Series("Unknown")
         )
     )
-    return brca_df.dropna(subset=["time"])
+    
+    if drop_missing_time:
+        brca_df = brca_df.dropna(subset=["time"])
+    return brca_df
 
 
 @st.cache_data
