@@ -879,6 +879,8 @@ def page_expression():
     gene_bar_selection = alt.selection_point(
         fields=["Gene"], toggle="true", empty="all"
     )
+    scatter = None
+    brush = None
     if len(gene_order) >= 2:
         if scatter_mode == "Manual gene axes":
             g1 = g1_manual or gene_order[0]
@@ -929,6 +931,7 @@ def page_expression():
             scatter = scatter.transform_filter(bar_selection)
     else:
         st.info("ℹ️ At least two genes are required to draw the scatter plot.")
+
     subtype_bar = (
         alt.Chart(df_samples)
         .mark_bar()
@@ -939,14 +942,16 @@ def page_expression():
             tooltip=["Subtype_Proxy", alt.Tooltip("count()", title="Samples")],
         )
         .add_params(bar_selection)
-        .properties(title="Subtype counts", width=400, height=300)
+        .properties(title="Subtype counts", width=400, height=150)
     )
+
     gene_var = (
         df_long.groupby("Gene")["Expression"]
         .var()
         .sort_values(ascending=False)
         .reset_index()
     )
+
     top_gene_bar = (
         alt.Chart(gene_var)
         .mark_bar()
@@ -957,8 +962,9 @@ def page_expression():
             tooltip=["Gene", alt.Tooltip("Expression", title="Variance")],
         )
         .add_params(gene_bar_selection)
-        .properties(title="Top genes by variance", width=900)
+        .properties(title="Top genes by variance", width=850, height=200)
     )
+
     heatmap = (
         alt.Chart(df_long)
         .mark_rect()
@@ -968,20 +974,25 @@ def page_expression():
             color=alt.Color("Expression", scale=alt.Scale(scheme="redblue")),
             tooltip=["sampleID", "Gene", "Expression", "Subtype_Proxy"],
         )
-        .properties(title="Top 50 Variable Genes", width=300)
+        .properties(title="Top 50 Variable Genes", width=400)
     )
+
     if heatmap_filter_mode == "Brush from scatter" and brush is not None:
         heatmap = heatmap.transform_filter(brush)
     if heatmap_filter_mode == "Click bar -> highlight":
         heatmap = heatmap.transform_filter(bar_selection)
     heatmap = heatmap.transform_filter(gene_bar_selection)
-    left_col = scatter if scatter is not None else subtype_bar
+
     if scatter is not None:
         left_col = (scatter & subtype_bar).resolve_scale(color="independent")
+    else:
+        left_col = subtype_bar
+
     top_row = alt.hconcat(left_col, heatmap).resolve_scale(color="independent")
     final_chart = alt.vconcat(top_row, top_gene_bar).resolve_scale(color="independent")
+
     with plots_tab:
-        st.altair_chart(final_chart, use_container_width=True)
+        st.altair_chart(final_chart, use_container_width=False)
 
     default_gene = (
         gene_search
