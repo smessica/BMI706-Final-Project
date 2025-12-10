@@ -107,7 +107,7 @@ def page_sites_demographics():
         fig = px.choropleth(
             country_data,
             locations='ISO-3',
-            z='Cases',
+            color='Cases',
             hover_name='Country',
             color_continuous_scale='Blues',
             labels={'Cases': 'BRCA Cases'},
