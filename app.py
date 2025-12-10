@@ -1412,18 +1412,16 @@ def page_demographics():
     # --- Summary Statistics ---
     st.subheader("Summary Statistics")
     
-    summary_col1, summary_col2, summary_col3, summary_col4 = st.columns(4)
+    summary_col1, summary_col2, summary_col3 = st.columns(3)
     
     with summary_col1:
         st.metric("Total Patients", len(filtered_df))
     with summary_col2:
-        st.metric("Unique Sites", filtered_df["site"].nunique())
-    with summary_col3:
         st.metric(
             "Stages Represented",
             filtered_df[filtered_df["stage"] != "Unknown"]["stage"].nunique(),
         )
-    with summary_col4:
+    with summary_col3:
         st.metric("Avg Age at Diagnosis", f"{filtered_df['age'].mean():.1f}")
 
 
