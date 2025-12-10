@@ -112,8 +112,6 @@ def page_sites_demographics():
     
     st.caption("📍 Hover over countries to see case counts. (Note: Demo data shown; update with real country-level aggregation)")
     
-    st.divider()
-    
     # --- Subtype Composition ---
     st.subheader("Subtype Distribution")
     
@@ -151,7 +149,6 @@ def page_sites_demographics():
         st.altair_chart(subtype_chart, use_container_width=True)
     else:
         st.info("No subtype data available for current filters.")
-    
     st.divider()
     
     # --- Lucy's View: Tumor Site & Co-occurrence ---
