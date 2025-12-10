@@ -4,18 +4,15 @@ import altair as alt
 import plotly.express as px
 from data_prep import load_and_preprocess_brca
 
-# --- Page B: Tumor Site + Demographics Map View ---
-
-def page_sites_demographics():
+def page_demographics():
     """
     Global and demographic patterns of breast cancer subtypes.
-    
+
     Features:
     - Subtype filter with normalization toggle
     - Age range slider
     - World map showing total BRCA incidence by country
     - Subtype composition bar chart linked to map
-    - Consistent color encodings across views
     """
     st.header("Global and Demographic Patterns of Breast Cancer Subtypes")
     
@@ -26,7 +23,7 @@ def page_sites_demographics():
         st.error("Error: Could not locate clinical.tsv")
         return
     
-    # --- Sidebar Filters (matching sketch) ---
+
     st.sidebar.subheader("Filters")
     
     # Subtype filter
@@ -86,31 +83,35 @@ def page_sites_demographics():
     
     st.sidebar.metric("Patients in View", len(filtered_df))
     
-    # --- Lindsay's View: Geographic Incidence Map ---
+    # Geographic Incidence Map ---
     st.subheader("World Map: Total BRCA Incidence by Country")
     
-    # Create sample country data for demonstration
-    # In production, this would come from geocoding patient addresses
-    country_data = pd.DataFrame({
-        'Country': ['United States', 'Canada', 'United Kingdom', 'Germany', 'France', 
-                   'Australia', 'Japan', 'Brazil', 'Mexico', 'India'],
-        'Cases': [1200, 450, 380, 320, 290, 250, 200, 180, 150, 140],
-        'ISO-3': ['USA', 'CAN', 'GBR', 'DEU', 'FRA', 'AUS', 'JPN', 'BRA', 'MEX', 'IND']
-    })
-    
-    # Create choropleth map
-    fig = px.choropleth(
-        country_data,
-        locations='ISO-3',
-        color='Cases',
-        hover_name='Country',
-        color_continuous_scale='Blues',
-        labels={'Cases': 'BRCA Cases'}
+    # Aggregate real country data from clinical.tsv
+    country_counts = (
+        filtered_df["country"]
+        .dropna()
+        .replace("Unknown", pd.NA)
+        .dropna()
+        .value_counts()
+        .reset_index()
     )
-    fig.update_layout(height=500, font=dict(size=11))
-    st.plotly_chart(fig, use_container_width=True)
-    
-    st.caption("📍 Hover over countries to see case counts. (Note: Demo data shown; update with real country-level aggregation)")
+    country_counts.columns = ["Country", "Cases"]
+
+    if not country_counts.empty:
+        fig = px.choropleth(
+            country_counts,
+            locations="Country",
+            locationmode="country names",
+            color="Cases",
+            hover_name="Country",
+            color_continuous_scale="Blues",
+            labels={"Cases": "BRCA Cases"},
+        )
+        fig.update_layout(height=500, font=dict(size=11))
+        st.plotly_chart(fig, use_container_width=True)
+        st.caption("📍 Hover over countries to see case counts (derived from clinical.tsv)")
+    else:
+        st.info("No country data available after applying filters.")
     
     # --- Subtype Composition ---
     st.subheader("Subtype Distribution")
@@ -234,4 +235,4 @@ def page_sites_demographics():
 
 
 if __name__ == "__main__":
-    page_sites_demographics()
+    page_demographics()

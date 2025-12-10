@@ -52,5 +52,10 @@ def load_and_preprocess_brca(path: str) -> pd.DataFrame:
     brca_df["ethnicity"] = clean_string_series(brca_df.get("demographic.ethnicity", pd.Series("Unknown")))
     brca_df["gender"] = clean_string_series(brca_df.get("demographic.gender", pd.Series("Unknown")))
     brca_df["site"] = clean_string_series(brca_df.get("diagnoses.tissue_or_organ_of_origin", pd.Series("Unknown")))
+
+    # Country (prefer residence, fallback to birth)
+    country_res = clean_string_series(brca_df.get("demographic.country_of_residence_at_enrollment", pd.Series(np.nan)))
+    country_birth = clean_string_series(brca_df.get("demographic.country_of_birth", pd.Series(np.nan)))
+    brca_df["country"] = country_res.fillna(country_birth)
     
     return brca_df.dropna(subset=["time"])
