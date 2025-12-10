@@ -1173,49 +1173,90 @@ def plot_km_brca(df, therapy_name):
 
 
 def page_demographics():
-    st.header("Global and Demographic Patterns of Breast Cancer Subtypes")
+    """
+    Global and demographic patterns of breast cancer by stage and demographics.
+
+    Features:
+    - Stage filter
+    - Age range slider
+    - World map showing total BRCA incidence by country
+    - Age distribution by race/ethnicity heatmap
+    - Stage distribution by demographics stacked bar charts
+    """
+    st.header("Global and Demographic Patterns of Breast Cancer by Stage and Demographics")
+    
+    # Load data
     try:
-        brca_df = load_and_preprocess_brca("clinical.tsv")
-    except Exception:
+        brca_df = load_and_preprocess_brca("clinical.tsv", drop_missing_time=False)
+    except:
         st.error("Error: Could not locate clinical.tsv")
         return
-    filter_row = st.columns(3)
-    subtype_opts = sorted(
-        [x for x in brca_df["stage"].unique() if pd.notna(x) and x != "Unknown"]
+    
+    st.sidebar.subheader("Filters")
+    
+    # Stage filter
+    stage_opts = sorted([x for x in brca_df["stage"].unique() if pd.notna(x) and x != "Unknown"])
+    selected_stage = st.sidebar.selectbox(
+        "STAGE",
+        ["All Stages"] + stage_opts
     )
-    selected_subtype = filter_row[0].selectbox(
-        "Subtype", ["All Subtypes"] + subtype_opts
+    
+    # Normalize by toggle
+    normalize_by = st.sidebar.radio(
+        "Normalize by",
+        ["Total Cases", "Absolute Counts"],
+        horizontal=False
     )
-    normalize_by = filter_row[0].radio(
-        "Normalize by", ["Total Cases", "Absolute Counts"], key="demo_norm"
-    )
-    filter_text = filter_row[1].text_input("Text filter (race/ethnicity/site)", "")
-    age_range = filter_row[1].slider(
+    
+    # Filter text box
+    filter_text = st.sidebar.text_input("Filter", "")
+    
+    # Age range slider
+    age_range = st.sidebar.slider(
         "Age Range",
         int(brca_df["age"].min()),
         int(brca_df["age"].max()),
-        (int(brca_df["age"].min()), int(brca_df["age"].max())),
+        (int(brca_df["age"].min()), int(brca_df["age"].max()))
     )
-    include_unknown = filter_row[2].checkbox("Include unknown / missing", value=True)
+    
+    # Include unknown/missing checkbox
+    include_unknown = st.sidebar.checkbox("Include unknown / missing", value=True)
+    
+    # --- Apply Filters ---
     filtered_df = brca_df.copy()
-    if selected_subtype != "All Subtypes":
-        filtered_df = filtered_df[filtered_df["stage"] == selected_subtype]
-    filtered_df = filtered_df[
-        (filtered_df["age"] >= age_range[0]) & (filtered_df["age"] <= age_range[1])
-    ]
+    
+    # Stage filter
+    if selected_stage != "All Stages":
+        filtered_df = filtered_df[filtered_df["stage"] == selected_stage]
+    
+    # Age range filter
+    filtered_df = filtered_df[(filtered_df["age"] >= age_range[0]) & (filtered_df["age"] <= age_range[1])]
+    
+    # Unknown/missing filter across key demographic fields
     if not include_unknown:
-        filtered_df = filtered_df[filtered_df["stage"] != "Unknown"]
+        keep_mask = (
+            (filtered_df["stage"].notna()) & (filtered_df["stage"] != "Unknown") &
+            (filtered_df["race"].notna()) & (filtered_df["race"] != "Unknown") &
+            (filtered_df["ethnicity"].notna()) & (filtered_df["ethnicity"] != "Unknown") &
+            (filtered_df["site"].notna()) & (filtered_df["site"] != "Unknown") &
+            (filtered_df["country"].notna()) & (filtered_df["country"] != "Unknown")
+        )
+        filtered_df = filtered_df[keep_mask]
+    
+    # Text filter (searches across race, ethnicity, site)
     if filter_text:
         mask = (
-            filtered_df["race"].str.contains(filter_text, case=False, na=False)
-            | filtered_df["ethnicity"].str.contains(filter_text, case=False, na=False)
-            | filtered_df["site"].str.contains(filter_text, case=False, na=False)
+            filtered_df["race"].str.contains(filter_text, case=False, na=False) |
+            filtered_df["ethnicity"].str.contains(filter_text, case=False, na=False) |
+            filtered_df["site"].str.contains(filter_text, case=False, na=False)
         )
         filtered_df = filtered_df[mask]
+    
     if filtered_df.empty:
         st.warning("No data matches current filters. Please adjust your selection.")
         return
-    st.metric("Patients in View", len(filtered_df))
+    
+    st.sidebar.metric("Patients in View", len(filtered_df))
     st.subheader("World Map: Total BRCA Incidence by Country")
     country_counts = (
         filtered_df["country"]
@@ -1243,53 +1284,43 @@ def page_demographics():
         )
     else:
         st.info("No country data available after applying filters.")
-    st.subheader("Subtype Distribution")
-    subtype_counts = filtered_df["stage"].value_counts().reset_index()
-    subtype_counts.columns = ["Subtype", "Count"]
-    subtype_counts = subtype_counts[subtype_counts["Subtype"] != "Unknown"]
-    subtype_by_demo = (
-        filtered_df.groupby(["stage", "race"]).size().reset_index(name="Count")
-    )
-    subtype_by_demo = subtype_by_demo[subtype_by_demo["stage"] != "Unknown"]
-    subtype_by_demo = subtype_by_demo[subtype_by_demo["race"] != "Unknown"]
-    if not subtype_by_demo.empty:
-        if normalize_by == "Total Cases":
-            total = subtype_by_demo["Count"].sum()
-            subtype_by_demo["Percentage"] = (
-                100 * subtype_by_demo["Count"] / total
-            ).round(1)
-            tooltip_fields = ["stage", "race", "Count", "Percentage"]
-        else:
-            tooltip_fields = ["stage", "race", "Count"]
-        treemap_chart = (
-            alt.Chart(subtype_by_demo)
-            .mark_rect()
-            .encode(
-                x=alt.X("race:N", title="Race"),
-                y=alt.Y("stage:N", title="Stage/Subtype"),
-                color=alt.Color(
-                    "Count:Q", scale=alt.Scale(scheme="blues"), title="Cases"
-                ),
-                size="Count:Q",
-                tooltip=tooltip_fields,
-            )
-            .properties(
-                height=300, width=600, title="Subtype Distribution by Race/Ethnicity"
-            )
-        )
-        st.altair_chart(treemap_chart, use_container_width=True)
+    st.subheader("Age Distribution by Demographics")
+    
+    # Create age bins for better heatmap visualization
+    age_bins = [0, 30, 40, 50, 60, 70, 100]
+    age_labels = ["<30", "30-40", "40-50", "50-60", "60-70", "70+"]
+    filtered_df["age_group"] = pd.cut(filtered_df["age"], bins=age_bins, labels=age_labels, right=False)
+    
+    # Age distribution by race
+    age_by_race = filtered_df.groupby(["race", "age_group"]).size().reset_index(name="Count")
+    if not include_unknown:
+        age_by_race = age_by_race[age_by_race["race"] != "Unknown"]
+    
+    if not age_by_race.empty:
+        # Create heatmap showing age distribution across race
+        age_race_heatmap = alt.Chart(age_by_race).mark_rect().encode(
+            x=alt.X("age_group:O", title="Age Group"),
+            y=alt.Y("race:N", title="Race"),
+            color=alt.Color("Count:Q", scale=alt.Scale(scheme="blues"), title="Patient Count"),
+            tooltip=["race", "age_group", "Count"]
+        ).properties(height=300, width=600)
+        
+        st.altair_chart(age_race_heatmap, use_container_width=True)
     else:
-        st.info("No subtype data available for current filters.")
+        st.info("No age/race data available for current filters.")
     st.divider()
     st.subheader("Stage at Diagnosis by Demographics")
     col1, col2 = st.columns([1, 1])
     with col1:
         st.write("**Stage Distribution by Race**")
+        
+        # Stage by race
         stage_by_race = (
             filtered_df.groupby(["race", "stage"]).size().reset_index(name="Count")
         )
-        stage_by_race = stage_by_race[stage_by_race["race"] != "Unknown"]
-        stage_by_race = stage_by_race[stage_by_race["stage"] != "Unknown"]
+        if not include_unknown:
+            stage_by_race = stage_by_race[stage_by_race["race"] != "Unknown"]
+            stage_by_race = stage_by_race[stage_by_race["stage"] != "Unknown"]
         if not stage_by_race.empty:
             stage_by_race["Total"] = stage_by_race.groupby("race")["Count"].transform(
                 "sum"
@@ -1308,9 +1339,7 @@ def page_demographics():
                     ),
                     tooltip=["race", "stage", "Count", "Percentage"],
                 )
-                .properties(
-                    height=300, title="Stage Distribution by Race (100% Stacked)"
-                )
+                .properties(height=300)
             )
             st.altair_chart(stage_race_chart, use_container_width=True)
         else:
@@ -1320,12 +1349,13 @@ def page_demographics():
         stage_by_ethnicity = (
             filtered_df.groupby(["ethnicity", "stage"]).size().reset_index(name="Count")
         )
-        stage_by_ethnicity = stage_by_ethnicity[
-            stage_by_ethnicity["ethnicity"] != "Unknown"
-        ]
-        stage_by_ethnicity = stage_by_ethnicity[
-            stage_by_ethnicity["stage"] != "Unknown"
-        ]
+        if not include_unknown:
+            stage_by_ethnicity = stage_by_ethnicity[
+                stage_by_ethnicity["ethnicity"] != "Unknown"
+            ]
+            stage_by_ethnicity = stage_by_ethnicity[
+                stage_by_ethnicity["stage"] != "Unknown"
+            ]
         if not stage_by_ethnicity.empty:
             stage_by_ethnicity["Total"] = stage_by_ethnicity.groupby("ethnicity")[
                 "Count"
@@ -1344,15 +1374,20 @@ def page_demographics():
                     ),
                     tooltip=["ethnicity", "stage", "Count", "Percentage"],
                 )
-                .properties(
-                    height=300, title="Stage Distribution by Ethnicity (100% Stacked)"
-                )
+                .properties(height=300)
             )
             st.altair_chart(stage_ethnicity_chart, use_container_width=True)
         else:
             st.info("No stage/ethnicity data available.")
     st.divider()
+    
+    st.divider()
+    
+    # --- Summary Statistics ---
+    st.subheader("Summary Statistics")
+    
     summary_col1, summary_col2, summary_col3, summary_col4 = st.columns(4)
+    
     with summary_col1:
         st.metric("Total Patients", len(filtered_df))
     with summary_col2:
