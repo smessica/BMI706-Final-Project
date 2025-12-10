@@ -14,7 +14,7 @@ def page_demographics():
     - World map showing total BRCA incidence by country
     - Subtype composition bar chart linked to map
     """
-    st.header("Global and Demographic Patterns of Breast Cancer Subtypes")
+    st.header("Global and Demographic Patterns of Breast Cancer by Stage and Demographics")
     
     # Load data
     try:
@@ -26,11 +26,11 @@ def page_demographics():
 
     st.sidebar.subheader("Filters")
     
-    # Subtype filter
-    subtype_opts = sorted([x for x in brca_df["stage"].unique() if pd.notna(x) and x != "Unknown"])
-    selected_subtype = st.sidebar.selectbox(
-        "SUBTYPE",
-        ["All Subtypes"] + subtype_opts
+    # Stage filter
+    stage_opts = sorted([x for x in brca_df["stage"].unique() if pd.notna(x) and x != "Unknown"])
+    selected_stage = st.sidebar.selectbox(
+        "STAGE",
+        ["All Stages"] + stage_opts
     )
     
     # Normalize by toggle
@@ -57,9 +57,9 @@ def page_demographics():
     # --- Apply Filters ---
     filtered_df = brca_df.copy()
     
-    # Subtype filter
-    if selected_subtype != "All Subtypes":
-        filtered_df = filtered_df[filtered_df["stage"] == selected_subtype]
+    # Stage filter
+    if selected_stage != "All Stages":
+        filtered_df = filtered_df[filtered_df["stage"] == selected_stage]
     
     # Age range filter
     filtered_df = filtered_df[(filtered_df["age"] >= age_range[0]) & (filtered_df["age"] <= age_range[1])]
@@ -120,8 +120,8 @@ def page_demographics():
     else:
         st.info("No country data available after applying filters.")
     
-    # --- Subtype Composition ---
-    st.subheader("Subtype Distribution")
+    # --- Stage Composition ---
+    st.subheader("Stage Distribution")
     
     # Subtype distribution (using stage as proxy for subtype)
     subtype_counts = filtered_df["stage"].value_counts().reset_index()
